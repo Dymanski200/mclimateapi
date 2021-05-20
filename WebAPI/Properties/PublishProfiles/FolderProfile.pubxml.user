@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+https://go.microsoft.com/fwlink/?LinkID=208121. 
+-->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <_PublishTargetUrl>C:\Users\admin\Desktop\release</_PublishTargetUrl>
+    <History>True|2021-05-19T18:05:09.8530458Z;True|2021-05-19T20:02:02.1249443+03:00;True|2021-05-19T18:04:32.7644835+03:00;True|2021-05-19T18:04:21.7354197+03:00;True|2021-05-13T17:50:48.2227271+03:00;True|2021-05-13T17:04:01.3288296+03:00;True|2021-05-13T17:00:02.0618483+03:00;True|2021-05-12T18:02:49.3054543+03:00;True|2021-05-12T18:00:24.2710187+03:00;True|2021-05-12T14:11:01.2510386+03:00;False|2021-05-12T14:10:29.1654068+03:00;True|2021-04-28T15:19:13.9924909+03:00;True|2021-04-28T15:07:44.6213119+03:00;True|2021-04-28T11:21:04.8012820+03:00;</History>
+  </PropertyGroup>
+</Project>
