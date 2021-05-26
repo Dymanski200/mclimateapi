@@ -23,7 +23,7 @@ namespace WebAPI.ViewModels
             Temperature = room.Temperature;
             Humidity = room.Humidity;
             TargetTemperature = room.TargetTemperature;
-            TargetTemperature = room.TargetHumidity;
+            TargetHumidity = room.TargetHumidity;
             PreviousUpdate = room.PreviousUpdate;
         }
     }

@@ -9,6 +9,7 @@ namespace WebAPI.Models
         public int ID { get; set; }
         public string Name { get; set; }
         public string Code { get; set; }
+        public string Salt { get; set; }
         public float Temperature { get; set; }
         public float Humidity { get; set; }
         public float TargetTemperature { get; set; }

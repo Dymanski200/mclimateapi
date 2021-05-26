@@ -28,7 +28,7 @@ namespace WebAPI.Controllers
         public async Task<IActionResult> Registration(RegistrationDataModel model)
         {
             //Приводим email
-            model.Email = model.Email.ToLower().Replace(" ",String.Empty);
+            model.Email = model.Email.ToLower().Replace(" ", String.Empty);
 
             //Проверяем наличие пользователя с таким email в БД 
             if (await database.Users.AnyAsync(x => x.Email == model.Email))
@@ -47,16 +47,19 @@ namespace WebAPI.Controllers
             //Создаём код активации
             var code = CodeGenerator.Generate(6);
 
+            var salt = HashGenerator.GetSalt(32);
+
             //Создаём объект пользователя
             var user = new User
             {
                 Email = model.Email,
-                Password = HashGenerator.Generate(model.Password),
+                Password = HashGenerator.Generate(model.Password, salt),
+                Salt = salt,
                 Surname = model.Surname,
                 Name = model.Name,
                 Patronymic = model.Patronymic,
                 ActivationStatus = false,
-                ConfirmationCode = HashGenerator.Generate(code),
+                ConfirmationCode = HashGenerator.Generate(code, salt),
                 RegistrationDate = DateTime.UtcNow,
                 RefreshToken = string.Empty,
                 Role = await database.Users.AnyAsync() ? "user" : "admin"
@@ -100,7 +103,7 @@ namespace WebAPI.Controllers
                 return Forbid();
 
             //Проверяем совпадение хешей кодов подтверждения
-            if (user.ConfirmationCode != HashGenerator.Generate(model.Code.ToUpper()))
+            if (user.ConfirmationCode != HashGenerator.Generate(model.Code.ToUpper(),user.Salt))
             {
                 ModelState.AddModelError(nameof(model.Code), "Неверный код");
                 return BadRequest(ModelState);
@@ -149,7 +152,7 @@ namespace WebAPI.Controllers
             }
 
             //Проверяем сходство хэшей кодов
-            if (user.ConfirmationCode != HashGenerator.Generate(model.Code.ToUpper()))
+            if (user.ConfirmationCode != HashGenerator.Generate(model.Code.ToUpper(), user.Salt))
             {
                 ModelState.AddModelError(nameof(model.Code), "Неверный код");
                 return BadRequest(ModelState);
@@ -176,8 +179,11 @@ namespace WebAPI.Controllers
                 RefreshToken = TokenService.GenerateRefreshToken()
             };
 
+            var salt = HashGenerator.GetSalt(32);
+
             //Меняем пароль и токен обновления
-            user.Password = HashGenerator.Generate(model.Password);
+            user.Password = HashGenerator.Generate(model.Password, salt);
+            user.Salt = salt;
             user.RefreshToken = tokens.RefreshToken;
 
             //Обновляем пользователя в БД
@@ -217,7 +223,7 @@ namespace WebAPI.Controllers
             }
 
             //Обновляем пользователя в БД
-            user.ConfirmationCode = HashGenerator.Generate(code);
+            user.ConfirmationCode = HashGenerator.Generate(code, user.Salt);
             database.Users.Update(user);
             await database.SaveChangesAsync();
 
@@ -241,7 +247,7 @@ namespace WebAPI.Controllers
             }
 
             //Проверяем сходство хэшей паролей
-            if (user.Password != HashGenerator.Generate(model.Password))
+            if (user.Password != HashGenerator.Generate(model.Password, user.Salt))
             {
                 ModelState.AddModelError(nameof(model.Password), "Неверный пароль");
                 return BadRequest(ModelState);
@@ -279,7 +285,7 @@ namespace WebAPI.Controllers
         public async Task<ActionResult<TokensViewModel>> Refresh(TokensDataModel model)
         {
             //Вытаскиваем email из токена
-            var email = TokenService.GetPrincipalFromExpiredToken(model.AccessToken).Claims.FirstOrDefault(x=>x.Type==ClaimTypes.Email).Value;
+            var email = TokenService.GetPrincipalFromExpiredToken(model.AccessToken).Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email).Value;
 
             //Ищем пользователя в БД
             var user = await database.Users.FirstOrDefaultAsync(x => x.Email == email);
@@ -313,24 +319,26 @@ namespace WebAPI.Controllers
             return Ok(tokens);
         }
 
-        [HttpHead("Logout")]
+        [HttpGet("Profiles")]
         [Authorize]
-        public async Task<IActionResult> Logout()
+        public async Task<ActionResult<IEnumerable<ProfileViewModel>>> Profiles(int id)
         {
             //Ищем пользователя с таким email в БД 
             var user = await database.Users.FirstOrDefaultAsync(x => x.Email == User.FindFirst(ClaimTypes.Email).Value);
             if (user == null)
                 return Unauthorized();
 
-            //Чистим токен обновления
-            user.RefreshToken = string.Empty;
+            var profiles = await database.Profiles.Where(x => x.UserID == user.ID).ToListAsync();
 
-            //Обновляем пользователя в БД
-            database.Users.Update(user);
-            await database.SaveChangesAsync();
+            if (profiles.Count == 0)
+                return NotFound();
 
-            //Отправляем Ок
-            return Ok();
+            var result = new List<ProfileViewModel>();
+
+            foreach (Profile profile in profiles)
+                result.Add(new ProfileViewModel(profile));
+
+            return result;
         }
     }
 }

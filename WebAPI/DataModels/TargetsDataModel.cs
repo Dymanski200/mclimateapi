@@ -6,15 +6,15 @@ using System.Threading.Tasks;
 
 namespace WebAPI.DataModels
 {
-    public class ClimateDataModel
+    public class TargetsDataModel
     {
         [Required(ErrorMessage = "Укажите код доступа")]
         public string Code { get; set; }
 
         [Required(ErrorMessage = "Укажите температуру")]
-        public float Temperature { get; set; }
+        public float TargetTemperature { get; set; }
 
         [Required(ErrorMessage = "Укажите влажность")]
-        public float Humidity { get; set; }
+        public float TargetHumidity { get; set; }
     }
 }

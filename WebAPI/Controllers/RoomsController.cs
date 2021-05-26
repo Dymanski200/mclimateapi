@@ -65,11 +65,14 @@ namespace WebAPI.Controllers
                 return BadRequest(ModelState);
             }
 
+            var salt = HashGenerator.GetSalt(32);
+
             //Создаём и пишем в БД помещение
             var room = new Room
             {
                 Name = model.Name,
-                Code = model.Code,
+                Code = HashGenerator.Generate(model.Code,salt),
+                Salt = salt,
                 Temperature = 0,
                 Humidity = 0,
                 TargetTemperature = 0,
@@ -84,32 +87,38 @@ namespace WebAPI.Controllers
         }
 
         [HttpPost("{id}/Refresh")]
-        [Authorize(Roles = "admin")]
-        public async Task<IActionResult> Refresh(int id, ClimateDataModel model) 
+        public async Task<IActionResult> Refresh(int id, ClimateDataModel model)
         {
             //Ищем помещение
             var room = await database.Rooms.FirstOrDefaultAsync(x => x.ID == id);
             if (room == null)
                 return NotFound();
 
+            if (room.Code != HashGenerator.Generate(model.Code, room.Salt))
+            {
+                ModelState.AddModelError(nameof(model.Code), "Неверный код");
+                return BadRequest(ModelState);
+            }
+
             //Обновляем показатели
             room.Temperature = model.Temperature;
             room.Humidity = model.Humidity;
+            room.PreviousUpdate = DateTime.Now;
 
             //Инициализация списка комманд
             var commands = new List<string>();
 
             //Перебираем устройства
-            var devices = await database.Devices.Where(x=>x.RoomID == id).ToListAsync();
+            var devices = await database.Devices.Where(x => x.RoomID == id).ToListAsync();
             foreach (Device device in devices)
-            { 
+            {
                 var rules = await database.Rules.Where(x => x.DeviceID == device.ID).ToListAsync();
                 foreach (Rule rule in rules)
                 {
                     var offset = room.TargetTemperature - room.Temperature;
                     if (Math.Sign(rule.Offset) == -1)
                     {
-                        if(Math.Abs(offset) < Math.Abs(rule.Offset))
+                        if (Math.Abs(offset) < Math.Abs(rule.Offset))
                         {
                             device.Status = rule.Status;
                             database.Devices.Update(device);
@@ -137,9 +146,69 @@ namespace WebAPI.Controllers
 
         }
 
+        [HttpPost("{id}/Targets")]
+        [Authorize]
+        public async Task<ActionResult> Targets(int id, TargetsDataModel model)
+        {
+            //Ищем пользователя с таким email в БД 
+            var user = await database.Users.FirstOrDefaultAsync(x => x.Email == User.FindFirst(ClaimTypes.Email).Value);
+            if (user == null)
+                return Unauthorized();
+
+            //Ищем помещение
+            var room = await database.Rooms.FirstOrDefaultAsync(x => x.ID == id);
+            if (room == null)
+                return NotFound();
+
+            if (room.Code != HashGenerator.Generate(model.Code, room.Salt))
+            {
+                ModelState.AddModelError(nameof(model.Code), "Неверный код");
+                return BadRequest(ModelState);
+            }
+
+            if (model.TargetTemperature != room.TargetTemperature) 
+            {
+                room.TargetTemperature = model.TargetTemperature;
+                database.Changes.Add(new Change
+                {
+                    RoomID = id,
+                    Message = $"{user.Surname} {user.Name} {user.Patronymic} установил(а) целевую температуру на {model.TargetTemperature} °C",
+                    Date = DateTime.Now
+                });
+            }
+
+            if (model.TargetHumidity != room.TargetHumidity)
+            {
+                room.TargetHumidity = model.TargetHumidity;
+                database.Changes.Add(new Change
+                {
+                    RoomID = id,
+                    Message = $"{user.Surname} {user.Name} {user.Patronymic} установил(а) целевую влажность на {model.TargetHumidity} %",
+                    Date = DateTime.Now
+                });
+            }
+
+            database.Rooms.Update(room);
+            await database.SaveChangesAsync();
+
+            var changes = await database.Changes.Where(x => x.RoomID == room.ID).OrderBy(x=>x.Date).ToListAsync();
+            var removes = new List<Change>();
+
+            while (changes.Count > 20)
+            {
+                removes.Add(changes[0]);
+                changes.Remove(changes[0]);
+            }
+
+            database.Changes.RemoveRange(removes);
+            await database.SaveChangesAsync();
+
+            return Ok();
+        }
+
         [HttpGet("{id}/Changes")]
         [Authorize]
-        public async Task<ActionResult<ChangeViewModel>> GetChanges(int id)
+        public async Task<ActionResult<IEnumerable<ChangeViewModel>>> GetChanges(int id)
         {
             //Ищем пользователя с таким email в БД 
             var user = await database.Users.FirstOrDefaultAsync(x => x.Email == User.FindFirst(ClaimTypes.Email).Value);
@@ -147,7 +216,7 @@ namespace WebAPI.Controllers
                 return Unauthorized();
 
             //Ищем изменения в БД
-            var changes = await database.Changes.Where(x => x.RoomID == id).ToListAsync();
+            var changes = await database.Changes.Where(x => x.RoomID == id).OrderByDescending(x=>x.Date).ToListAsync();
             if (changes.Count == 0)
                 return NotFound();
 
@@ -162,7 +231,7 @@ namespace WebAPI.Controllers
 
         [HttpGet("{id}/Devices")]
         [Authorize]
-        public async Task<ActionResult<ChangeViewModel>> GetDevices(int id)
+        public async Task<ActionResult<IEnumerable<DeviceViewModel>>> GetDevices(int id)
         {
             //Ищем пользователя с таким email в БД 
             var user = await database.Users.FirstOrDefaultAsync(x => x.Email == User.FindFirst(ClaimTypes.Email).Value);
@@ -181,13 +250,6 @@ namespace WebAPI.Controllers
                 result.Add(new DeviceViewModel(device));
             }
             return Ok(result);
-        }
-
-        [HttpPost("{id}/Devices")]
-        [Authorize(Roles = "admin")]
-        public async Task<IActionResult> PostDevice(int id, DeviceDataModel model)
-        { 
-
         }
 
         [HttpDelete("{id}")]

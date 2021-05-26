@@ -10,5 +10,7 @@ namespace WebAPI.DataModels
     {
         [Required(ErrorMessage = "Введите название")]
         public string Name { get; set; }
+        [Required(ErrorMessage = "Введите помещение")]
+        public int RoomID { get; set; }
     }
 }

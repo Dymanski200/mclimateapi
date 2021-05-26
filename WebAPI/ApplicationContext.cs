@@ -12,7 +12,7 @@ namespace WebAPI
         public ApplicationContext(DbContextOptions<ApplicationContext> options) : base(options: options) 
         {
             //Database.EnsureDeleted();
-            Database.EnsureCreated();
+            //Database.EnsureCreated();
         }
 
         public DbSet<Room> Rooms { get; set; }
