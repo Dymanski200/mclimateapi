@@ -47,6 +47,7 @@ namespace WebAPI.Controllers
             //Создаём код активации
             var code = CodeGenerator.Generate(6);
 
+            //Генерируем соль
             var salt = HashGenerator.GetSalt(32);
 
             //Создаём объект пользователя
@@ -60,7 +61,7 @@ namespace WebAPI.Controllers
                 Patronymic = model.Patronymic,
                 ActivationStatus = false,
                 ConfirmationCode = HashGenerator.Generate(code, salt),
-                RegistrationDate = DateTime.UtcNow,
+                RegistrationDate = DateTime.Now,
                 RefreshToken = string.Empty,
                 Role = await database.Users.AnyAsync() ? "user" : "admin"
             };
