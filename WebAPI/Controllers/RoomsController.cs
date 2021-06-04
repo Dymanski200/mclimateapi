@@ -115,24 +115,25 @@ namespace WebAPI.Controllers
                 var rules = await database.Rules.Where(x => x.DeviceID == device.ID).ToListAsync();
                 foreach (Rule rule in rules)
                 {
-                    var offset = room.TargetTemperature - room.Temperature;
-                    if (Math.Sign(rule.Offset) == -1)
+                    if (rule.Temperature)
                     {
-                        if (Math.Abs(offset) < Math.Abs(rule.Offset))
-                        {
-                            device.Status = rule.Status;
-                            database.Devices.Update(device);
+                        var offset = room.Temperature - room.TargetTemperature;
+                        if ((rule.Offset == 0) && (offset == 0))
                             commands.Add(rule.Command);
-                        }
+                        if ((rule.Offset > 0) && (offset > 0) && (Math.Abs(offset) > Math.Abs(rule.Offset)))
+                            commands.Add(rule.Command);
+                        if ((rule.Offset < 0) && (offset < 0) && (Math.Abs(offset) > Math.Abs(rule.Offset)))
+                            commands.Add(rule.Command);
                     }
-                    if (Math.Sign(rule.Offset) == 1)
+                    if (!rule.Temperature)
                     {
-                        if (Math.Abs(offset) > Math.Abs(rule.Offset))
-                        {
-                            device.Status = rule.Status;
-                            database.Devices.Update(device);
+                        var offset = room.Humidity - room.TargetHumidity;
+                        if ((rule.Offset == 0) && (offset == 0))
                             commands.Add(rule.Command);
-                        }
+                        if ((rule.Offset > 0) && (offset > 0) && (Math.Abs(offset) > Math.Abs(rule.Offset)))
+                            commands.Add(rule.Command);
+                        if ((rule.Offset < 0) && (offset < 0) && (Math.Abs(offset) > Math.Abs(rule.Offset)))
+                            commands.Add(rule.Command);
                     }
                 }
             }
