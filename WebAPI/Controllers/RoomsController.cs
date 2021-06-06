@@ -101,9 +101,30 @@ namespace WebAPI.Controllers
             }
 
             //Обновляем показатели
-            room.Temperature = model.Temperature;
-            room.Humidity = model.Humidity;
+
+            if (room.Temperature != model.Temperature) 
+            {
+                room.Temperature = model.Temperature;
+                database.Changes.Add(new Change 
+                {
+                    RoomID = id,
+                    Message = $"Изменение температуры: {model.Temperature}°C",
+                    Date = DateTime.Now
+                });
+            }
+
+            if (room.Humidity != model.Humidity)
+            {
+                room.Humidity = model.Humidity;
+                database.Changes.Add(new Change
+                {
+                    RoomID = id,
+                    Message = $"Изменение влажности: {model.Humidity}%",
+                    Date = DateTime.Now
+                });
+            }
             room.PreviousUpdate = DateTime.Now;
+
 
             //Инициализация списка комманд
             var commands = new List<string>();
@@ -142,6 +163,18 @@ namespace WebAPI.Controllers
             database.Rooms.Update(room);
             await database.SaveChangesAsync();
 
+            var changes = await database.Changes.Where(x => x.RoomID == room.ID).OrderBy(x => x.Date).ToListAsync();
+            var removes = new List<Change>();
+
+            while (changes.Count > ServerConfiguration.HistorySize)
+            {
+                removes.Add(changes[0]);
+                changes.Remove(changes[0]);
+            }
+
+            database.Changes.RemoveRange(removes);
+            await database.SaveChangesAsync();
+
             //Отправляем списком комманд
             return Ok(commands);
 
@@ -173,7 +206,7 @@ namespace WebAPI.Controllers
                 database.Changes.Add(new Change
                 {
                     RoomID = id,
-                    Message = $"{user.Surname} {user.Name} {user.Patronymic} установил(а) целевую температуру на {model.TargetTemperature} °C",
+                    Message = $"{user.Surname} {user.Name} {user.Patronymic} установил(а) целевую температуру на {model.TargetTemperature}°C",
                     Date = DateTime.Now
                 });
             }
@@ -184,7 +217,7 @@ namespace WebAPI.Controllers
                 database.Changes.Add(new Change
                 {
                     RoomID = id,
-                    Message = $"{user.Surname} {user.Name} {user.Patronymic} установил(а) целевую влажность на {model.TargetHumidity} %",
+                    Message = $"{user.Surname} {user.Name} {user.Patronymic} установил(а) целевую влажность на {model.TargetHumidity}%",
                     Date = DateTime.Now
                 });
             }
@@ -195,7 +228,7 @@ namespace WebAPI.Controllers
             var changes = await database.Changes.Where(x => x.RoomID == room.ID).OrderBy(x=>x.Date).ToListAsync();
             var removes = new List<Change>();
 
-            while (changes.Count > 20)
+            while (changes.Count > ServerConfiguration.HistorySize)
             {
                 removes.Add(changes[0]);
                 changes.Remove(changes[0]);

@@ -14,7 +14,6 @@ namespace WebAPI
         public static void Main(string[] args)
         {
             CreateHostBuilder(args).Build().Run();
-            ServerConfiguration.AddCode = CodeGenerator.Generate(8);
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
