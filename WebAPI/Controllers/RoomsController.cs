@@ -86,11 +86,11 @@ namespace WebAPI.Controllers
             return Ok();
         }
 
-        [HttpPost("{id}/Refresh")]
-        public async Task<IActionResult> Refresh(int id, ClimateDataModel model)
+        [HttpPost("{name}/Refresh")]
+        public async Task<IActionResult> Refresh(string name, ClimateDataModel model)
         {
             //Ищем помещение
-            var room = await database.Rooms.FirstOrDefaultAsync(x => x.ID == id);
+            var room = await database.Rooms.FirstOrDefaultAsync(x => x.Name == name);
             if (room == null)
                 return NotFound();
 
@@ -107,7 +107,7 @@ namespace WebAPI.Controllers
                 room.Temperature = model.Temperature;
                 database.Changes.Add(new Change 
                 {
-                    RoomID = id,
+                    RoomID = room.ID,
                     Message = $"Изменение температуры: {model.Temperature}°C",
                     Date = DateTime.Now
                 });
@@ -118,7 +118,7 @@ namespace WebAPI.Controllers
                 room.Humidity = model.Humidity;
                 database.Changes.Add(new Change
                 {
-                    RoomID = id,
+                    RoomID = room.ID,
                     Message = $"Изменение влажности: {model.Humidity}%",
                     Date = DateTime.Now
                 });
@@ -130,7 +130,7 @@ namespace WebAPI.Controllers
             var commands = new List<string>();
 
             //Перебираем устройства
-            var devices = await database.Devices.Where(x => x.RoomID == id).ToListAsync();
+            var devices = await database.Devices.Where(x => x.RoomID == room.ID).ToListAsync();
             foreach (Device device in devices)
             {
                 var rules = await database.Rules.Where(x => x.DeviceID == device.ID).ToListAsync();
